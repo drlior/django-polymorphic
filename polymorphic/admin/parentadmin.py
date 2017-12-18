@@ -11,7 +11,8 @@ from django.core.exceptions import PermissionDenied, ImproperlyConfigured
 from django.db import models
 from django.http import Http404, HttpResponseRedirect
 from django.template.response import TemplateResponse
-from django.urls import RegexURLResolver
+# from django.urls import RegexURLResolver
+from django.urls import resolve
 from django.utils.encoding import force_text
 from django.utils.http import urlencode
 from django.utils.safestring import mark_safe
@@ -82,13 +83,15 @@ class PolymorphicParentModelAdmin(admin.ModelAdmin):
         # Make absolutely sure that the child models don't use the old 0.9 format,
         # as of polymorphic 1.4 this deprecated configuration is no longer supported.
         # Instead, register the child models in the admin too.
-        if self._child_models and not issubclass(self._child_models[0], models.Model):
-            raise ImproperlyConfigured(
-                "Since django-polymorphic 1.4, the `child_models` attribute "
-                "and `get_child_models()` method should be a list of models only.\n"
-                "The model-admin class should be registered in the regular Django admin."
-            )
-
+        try:
+            if self._child_models and not issubclass(self._child_models[0], models.Model):
+                raise ImproperlyConfigured(
+                    "Since django-polymorphic 1.4, the `child_models` attribute "
+                    "and `get_child_models()` method should be a list of models only.\n"
+                    "The model-admin class should be registered in the regular Django admin."
+                )
+        except TypeError:
+            raise Exception(self._child_models[0])
         self._child_admin_site = self.admin_site
         self._is_setup = True
 
@@ -265,8 +268,9 @@ class PolymorphicParentModelAdmin(admin.ModelAdmin):
             ct_id = self.model.objects.values_list('polymorphic_ctype_id', flat=True).get(pk=object_id)
 
         real_admin = self._get_real_admin_by_ct(ct_id)
-        resolver = RegexURLResolver('^', real_admin.urls)
-        resolvermatch = resolver.resolve(path)  # May raise Resolver404
+        # resolver = RegexURLResolver('^', real_admin.urls)
+        # resolvermatch = resolver.resolve(path)  # May raise Resolver404
+        resolvermatch = resolve(path)
         if not resolvermatch:
             raise Http404("No match for path '{0}' in admin subclass.".format(path))
 
